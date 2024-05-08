@@ -10,14 +10,13 @@ Data: Brain images categorized into "Normal" and "Stroke" classes.
 Features: Extraction of features from brain images using Histogram of Oriented Gradients (HOG), Local Binary Patterns (LBP), and Gabor filters.
 Classifier: Training a Support Vector Machine (SVM) classifier using the extracted features.
 Evaluation: Assessing the performance of the classifier using accuracy, classification report, confusion matrix, ROC curve, and cross-validation.
+
 Requirements
+
 Python 3
 Required Python packages: scikit-image, numpy, scikit-learn, matplotlib, seaborn, PIL
 Jupyter Notebook (optional, for running the code interactively)
-Usage
-Clone the repository:
 
-git clone <repository-url>
 
 Prepare your dataset:
 Organize your brain images into "Normal" and "Stroke" folders.
