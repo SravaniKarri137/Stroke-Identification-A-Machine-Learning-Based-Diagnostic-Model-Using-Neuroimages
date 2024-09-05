@@ -1,0 +1,101 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+from tensorflow.keras.utils import to_categorical
+
+# Preprocess images for CNN (normalize pixel values)
+def preprocess_image_cnn(img, target_size=(100, 100)):
+    img = img.convert('L')  # Convert to grayscale
+    img = img.resize(target_size)  # Resize image
+    return np.array(img) / 255.0  # Normalize pixel values between 0 and 1
+
+# Preprocess images
+normal_images_processed_cnn = [preprocess_image_cnn(img) for img in normal_images]
+stroke_images_processed_cnn = [preprocess_image_cnn(img) for img in stroke_images]
+
+# Combine features and labels for CNN
+X_cnn = np.array(normal_images_processed_cnn + stroke_images_processed_cnn)
+y_cnn = ['normal'] * len(normal_images_processed_cnn) + ['stroke'] * len(stroke_images_processed_cnn)
+
+# Encode labels to binary format and one-hot encode for CNN
+label_encoder_cnn = LabelEncoder()
+y_binary_cnn = label_encoder_cnn.fit_transform(y_cnn)
+y_one_hot_cnn = to_categorical(y_binary_cnn)
+
+# Split data into train and test sets
+X_train_cnn, X_test_cnn, y_train_cnn, y_test_cnn = train_test_split(X_cnn, y_one_hot_cnn, test_size=0.2, random_state=42)
+
+# Reshape the data to fit the CNN input (100x100x1 for grayscale images)
+X_train_cnn = X_train_cnn.reshape(-1, 100, 100, 1)
+X_test_cnn = X_test_cnn.reshape(-1, 100, 100, 1)
+
+# Build CNN model
+cnn_model = models.Sequential([
+    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(100, 100, 1)),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(2, activation='softmax')  # Output layer with 2 classes (normal, stroke)
+])
+
+# Compile the model
+cnn_model.compile(optimizer='adam',
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+
+# Train the model
+history = cnn_model.fit(X_train_cnn, y_train_cnn, epochs=10, validation_split=0.2, batch_size=32)
+
+# Evaluate the model on the test set
+test_loss, test_accuracy = cnn_model.evaluate(X_test_cnn, y_test_cnn)
+print(f"Test accuracy after training CNN: {test_accuracy:.4f}")
+
+# Predict on test set
+y_pred_cnn = cnn_model.predict(X_test_cnn)
+y_pred_cnn_labels = np.argmax(y_pred_cnn, axis=1)
+y_test_cnn_labels = np.argmax(y_test_cnn, axis=1)
+
+# Confusion matrix for CNN
+conf_matrix_cnn = confusion_matrix(y_test_cnn_labels, y_pred_cnn_labels)
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix_cnn, annot=True, fmt='d', cmap="Blues", cbar=False,
+            xticklabels=label_encoder_cnn.classes_, yticklabels=label_encoder_cnn.classes_)
+plt.xlabel('Predicted Label')
+plt.ylabel('True Label')
+plt.title('CNN Confusion Matrix')
+plt.show()
+
+# ROC curve for CNN
+fpr_cnn, tpr_cnn, _ = roc_curve(y_test_cnn_labels, y_pred_cnn[:, 1])
+auc_cnn = roc_auc_score(y_test_cnn_labels, y_pred_cnn[:, 1])
+
+plt.figure(figsize=(8, 6))
+plt.plot(fpr_cnn, tpr_cnn, color='orange', label='CNN ROC Curve (AUC = {:.2f})'.format(auc_cnn))
+plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('CNN Receiver Operating Characteristic (ROC) Curve')
+plt.legend(loc='lower right')
+plt.show()
+
+# User input prediction for CNN
+while True:
+    image_path = input("Enter the path to the image for CNN prediction (or 'exit' to quit): ")
+    if image_path.lower() == 'exit':
+        break
+    try:
+        # Preprocess image
+        img = Image.open(image_path)
+        img = preprocess_image_cnn(img)
+        img_reshaped = img.reshape(1, 100, 100, 1)  # Reshape for CNN input
+
+        # Make prediction
+        prediction_cnn = cnn_model.predict(img_reshaped)
+        prediction_label_cnn = label_encoder_cnn.inverse_transform([np.argmax(prediction_cnn)])
+        print("CNN Prediction:", prediction_label_cnn[0])
+    except Exception as e:
+        print("Error:", e)
